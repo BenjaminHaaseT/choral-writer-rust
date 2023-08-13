@@ -37,7 +37,7 @@ macro_rules! harm_prog_node {
 }
 
 /// The struct that implements the directed graph of harmonic progression for a given key.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct HarmonicProgressionGraph {
     graph: HashMap<u8, HarmonicProgressionNode>,
 }
@@ -59,11 +59,11 @@ macro_rules! harm_prog_graph {
                 let seventh = (sixth + 2) % 12;
                 let major_I = harm_prog_node!(0xfc as u8; root; third, fifth);
                 let minor_ii_7 = harm_prog_node!(0xa0 as u8; second; fourth, sixth, root);
-                let minor_iii = harm_prog_node!(0x54 as u8; third; sixth, seventh);
+                let minor_iii = harm_prog_node!(0x50 as u8; third; fifth, seventh);
                 let major_IV = harm_prog_node!(0xa6 as u8; fourth; sixth, root);
                 let major_V_7 = harm_prog_node!(0x42 as u8; fifth; seventh, second, fourth);
                 let minor_vi = harm_prog_node!(0x14 as u8; sixth; root, third);
-                let dim_vii = harm_prog_node!(1 as u8; seventh; second, fourth);
+                let dim_vii = harm_prog_node!(0x22 as u8; seventh; second, fourth);
                 let mut graph = HashMap::new();
                 graph.insert(1, major_I);
                 graph.insert(2, minor_ii_7);
@@ -224,7 +224,125 @@ mod test {
     #[test]
     fn test_harm_prog_graph_macro() {
         let key_of_c_maj = harm_prog_graph!(0);
-        println!("{:#?}", key_of_c_maj);
-        assert!(true);
+        let test_graph = {
+            let maj_I = {
+                let mut edges = HashSet::new();
+                for i in 2..=7_u8 {
+                    edges.insert(i);
+                }
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(0);
+                pitch_classes.insert(4);
+                pitch_classes.insert(7);
+                HarmonicProgressionNode {
+                    root: 0,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let min_ii = {
+                let mut edges = HashSet::new();
+                edges.insert(5);
+                edges.insert(7);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(2);
+                pitch_classes.insert(5);
+                pitch_classes.insert(9);
+                pitch_classes.insert(0);
+                HarmonicProgressionNode {
+                    root: 2,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let min_iii = {
+                let mut edges = HashSet::new();
+                edges.insert(4);
+                edges.insert(6);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(4);
+                pitch_classes.insert(7);
+                pitch_classes.insert(11);
+                HarmonicProgressionNode {
+                    root: 4,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let maj_IV = {
+                let mut edges = HashSet::new();
+                edges.insert(5);
+                edges.insert(2);
+                edges.insert(7);
+                edges.insert(1);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(5);
+                pitch_classes.insert(9);
+                pitch_classes.insert(0);
+                HarmonicProgressionNode {
+                    root: 5,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let maj_V = {
+                let mut edges = HashSet::new();
+                edges.insert(1);
+                edges.insert(6);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(7);
+                pitch_classes.insert(11);
+                pitch_classes.insert(2);
+                pitch_classes.insert(5);
+                HarmonicProgressionNode {
+                    root: 7,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let min_vi = {
+                let mut edges = HashSet::new();
+                edges.insert(2);
+                edges.insert(4);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(9);
+                pitch_classes.insert(0);
+                pitch_classes.insert(4);
+                HarmonicProgressionNode {
+                    root: 9,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let dim_vii = {
+                let mut edges = HashSet::new();
+                edges.insert(1);
+                edges.insert(5);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(11);
+                pitch_classes.insert(2);
+                pitch_classes.insert(5);
+                HarmonicProgressionNode {
+                    root: 11,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let mut graph = HashMap::new();
+            graph.insert(1, maj_I);
+            graph.insert(2, min_ii);
+            graph.insert(3, min_iii);
+            graph.insert(4, maj_IV);
+            graph.insert(5, maj_V);
+            graph.insert(6, min_vi);
+            graph.insert(7, dim_vii);
+            HarmonicProgressionGraph { graph }
+        };
+
+        for i in 1..8 {
+            assert_eq!(test_graph.graph[&i], key_of_c_maj.graph[&i]);
+        }
+
+        assert_eq!(test_graph, key_of_c_maj);
     }
 }
