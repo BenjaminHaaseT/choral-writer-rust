@@ -74,7 +74,34 @@ macro_rules! harm_prog_graph {
                 graph.insert(7, dim_vii);
                 HarmonicProgressionGraph { graph }
             }
-            // (k, false) if (0..12).contains(&k) => {},
+            (k, false) if (0..12).contains(&k) => {
+                let root = k;
+                let second = (root + 2) % 12;
+                let third = (second + 1) % 12;
+                let fourth = (third + 2) % 12;
+                let fifth = (fourth + 2) % 12;
+                let sixth = (fifth + 1) % 12;
+                let seventh = (sixth + 2) % 12;
+                let min_i = harm_prog_node!(0xfd as u8; root; third, fifth);
+                let dim_ii = harm_prog_node!(0xa0 as u8; second; fourth, sixth);
+                let maj_III = harm_prog_node!(0x50 as u8; third; fifth, seventh);
+                let min_iv = harm_prog_node!(0xa7 as u8; fourth; sixth, root);
+                let maj_V_7 = harm_prog_node!(0x42 as u8; fifth; (seventh + 1) % 12, second, fourth);
+                let maj_VI = harm_prog_node!(0x14 as u8; sixth; root, third);
+                let dim_vii = harm_prog_node!(0x22 as u8; (seventh + 1) % 12; second, fourth);
+                let maj_VII = harm_prog_node!(0x8 as u8; seventh; second, fourth);
+                let mut graph = HashMap::new();
+                graph.insert(1, min_i);
+                graph.insert(2, dim_ii);
+                graph.insert(3, maj_III);
+                graph.insert(4, min_iv);
+                graph.insert(5, maj_V_7);
+                graph.insert(6, maj_VI);
+                graph.insert(7, dim_vii);
+                graph.insert(0, maj_VII);
+                HarmonicProgressionGraph {graph}
+
+            },
             (k, _) if !(0..12).contains(&k) => panic!("{k} is an unaccepted key"),
             _ => panic!("unexpected arguments"),
         }
@@ -222,7 +249,7 @@ mod test {
     }
 
     #[test]
-    fn test_harm_prog_graph_macro() {
+    fn test_harm_prog_graph_maj_macro() {
         let key_of_c_maj = harm_prog_graph!(0);
         let test_graph = {
             let maj_I = {
@@ -344,5 +371,50 @@ mod test {
         }
 
         assert_eq!(test_graph, key_of_c_maj);
+    }
+
+    #[test]
+    fn test_harm_prog_graph_min_macro() {
+        let key_of_c_min = harm_prog_graph!(0, false);
+        println!("{:#?}", key_of_c_min);
+
+        let test_key = {
+            let min_i = {
+                let mut edges = HashSet::new();
+                for i in 0..8_u8 {
+                    if i != 1 {
+                        edges.insert(i);
+                    }
+                }
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(0);
+                pitch_classes.insert(3);
+                pitch_classes.insert(7);
+                HarmonicProgressionNode {root: 0, pitch_classes, edges}
+            };
+            let dim_ii = {
+                let mut edges = HashSet::new();
+                edges.insert(5);
+                edges.insert(7);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(2);
+                pitch_classes.insert(5);
+                pitch_classes.insert(8);
+                HarmonicProgressionNode {root: 2, pitch_classes, edges}
+            };
+            let maj_III = {
+                let mut edges = HashSet::new();
+                edges.insert(6);
+                edges.insert(4);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(3);
+                pitch_classes.insert(7);
+                pitch_classes.insert(10);
+                HarmonicProgressionNode {root: 3, pitch_classes, edges}
+            };
+            
+        }
+
+        assert!(true);
     }
 }

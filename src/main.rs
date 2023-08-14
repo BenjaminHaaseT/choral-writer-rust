@@ -1,5 +1,4 @@
 mod prog;
-
 fn main() {
     println!("Hello, world!");
     println!("{:08b}", 0xfe);
