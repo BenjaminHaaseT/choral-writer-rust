@@ -390,7 +390,11 @@ mod test {
                 pitch_classes.insert(0);
                 pitch_classes.insert(3);
                 pitch_classes.insert(7);
-                HarmonicProgressionNode {root: 0, pitch_classes, edges}
+                HarmonicProgressionNode {
+                    root: 0,
+                    pitch_classes,
+                    edges,
+                }
             };
             let dim_ii = {
                 let mut edges = HashSet::new();
@@ -400,7 +404,11 @@ mod test {
                 pitch_classes.insert(2);
                 pitch_classes.insert(5);
                 pitch_classes.insert(8);
-                HarmonicProgressionNode {root: 2, pitch_classes, edges}
+                HarmonicProgressionNode {
+                    root: 2,
+                    pitch_classes,
+                    edges,
+                }
             };
             let maj_III = {
                 let mut edges = HashSet::new();
@@ -410,11 +418,101 @@ mod test {
                 pitch_classes.insert(3);
                 pitch_classes.insert(7);
                 pitch_classes.insert(10);
-                HarmonicProgressionNode {root: 3, pitch_classes, edges}
+                HarmonicProgressionNode {
+                    root: 3,
+                    pitch_classes,
+                    edges,
+                }
             };
-            
+            let min_iv = {
+                let mut edges = HashSet::new();
+                edges.insert(7);
+                edges.insert(5);
+                edges.insert(1);
+                edges.insert(2);
+                edges.insert(0);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(5);
+                pitch_classes.insert(8);
+                pitch_classes.insert(0);
+                HarmonicProgressionNode {
+                    root: 5,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let maj_V_7 = {
+                let mut edges = HashSet::new();
+                edges.insert(1);
+                edges.insert(6);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(7);
+                pitch_classes.insert(11);
+                pitch_classes.insert(2);
+                pitch_classes.insert(5);
+                HarmonicProgressionNode {
+                    root: 7,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let maj_VI = {
+                let mut edges = HashSet::new();
+                edges.insert(2);
+                edges.insert(4);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(8);
+                pitch_classes.insert(0);
+                pitch_classes.insert(3);
+                HarmonicProgressionNode {
+                    root: 8,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let dim_vii = {
+                let mut edges = HashSet::new();
+                edges.insert(5);
+                edges.insert(1);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(11);
+                pitch_classes.insert(2);
+                pitch_classes.insert(5);
+                HarmonicProgressionNode {
+                    root: 11,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let maj_VII = {
+                let mut edges = HashSet::new();
+                edges.insert(3);
+                let mut pitch_classes = HashSet::new();
+                pitch_classes.insert(10);
+                pitch_classes.insert(2);
+                pitch_classes.insert(5);
+                HarmonicProgressionNode {
+                    root: 10,
+                    pitch_classes,
+                    edges,
+                }
+            };
+            let mut graph = HashMap::new();
+            graph.insert(1, min_i);
+            graph.insert(2, dim_ii);
+            graph.insert(3, maj_III);
+            graph.insert(4, min_iv);
+            graph.insert(5, maj_V_7);
+            graph.insert(6, maj_VI);
+            graph.insert(7, dim_vii);
+            graph.insert(0, maj_VII);
+            HarmonicProgressionGraph { graph }
+        };
+
+        for k in 0..8 {
+            assert_eq!(test_key.graph[&k], key_of_c_min.graph[&k]);
         }
 
-        assert!(true);
+        assert_eq!(test_key, key_of_c_min);
     }
 }
