@@ -18,7 +18,6 @@ checksum = "4d13cdbd5dbb29f9c88095bbdc2590c9cba0d0a1269b983fef6b2cdd7e9f4db1"
 [[package]]
 name = "twelve_et"
 version = "0.1.0"
-source = "git+https://github.com/BenjaminHaaseT/twelve-et-lib.git#9f9e470b4a2350d604729451a2a24a55a2a22f88"
 dependencies = [
  "hound",
 ]
