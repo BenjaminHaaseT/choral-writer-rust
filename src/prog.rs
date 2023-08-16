@@ -4,13 +4,13 @@ use std::iter::FromIterator;
 use std::ops::Range;
 use twelve_et::prelude::*;
 use twelve_et::{
-    ALTO_VOICE_OCTAVE_RANGE, ALTO_VOICE_PITCH_CLASS_LOWER_BOUND,
-    ALTO_VOICE_PITCH_CLASS_UPPER_BOUND, BASS_VOICE_OCTAVE_RANGE,
-    BASS_VOICE_PITCH_CLASS_LOWER_BOUND, BASS_VOICE_PITCH_CLASS_UPPER_BOUND, SATB,
-    SOPRANO_VOICE_OCTAVE_RANGE, SOPRANO_VOICE_PITCH_CLASS_LOWER_BOUND,
-    SOPRANO_VOICE_PITCH_CLASS_UPPER_BOUND, TENOR_VOICE_OCTAVE_RANGE,
-    TENOR_VOICE_PITCH_CLASS_LOWER_BOUND, TENOR_VOICE_PITCH_CLASS_UPPER_BOUND,
-    PitchClassArithmetic
+    compute_semi_tone_dist, PitchClassArithmetic, ALTO_VOICE_OCTAVE_RANGE,
+    ALTO_VOICE_PITCH_CLASS_LOWER_BOUND, ALTO_VOICE_PITCH_CLASS_UPPER_BOUND,
+    BASS_VOICE_OCTAVE_RANGE, BASS_VOICE_PITCH_CLASS_LOWER_BOUND,
+    BASS_VOICE_PITCH_CLASS_UPPER_BOUND, SATB, SOPRANO_VOICE_OCTAVE_RANGE,
+    SOPRANO_VOICE_PITCH_CLASS_LOWER_BOUND, SOPRANO_VOICE_PITCH_CLASS_UPPER_BOUND,
+    TENOR_VOICE_OCTAVE_RANGE, TENOR_VOICE_PITCH_CLASS_LOWER_BOUND,
+    TENOR_VOICE_PITCH_CLASS_UPPER_BOUND,
 };
 
 /// Struct that acts as a single node in the directed graph of harmonic progression.
@@ -116,7 +116,9 @@ macro_rules! harm_prog_graph {
 }
 
 /// A helper function for checking that we can take the current voice with the current octave given the current state
-fn 
+// fn voice_is_valid(prev_voice: (u8, u8), cur_voice: (u8, u8)) -> bool {
+
+// }
 
 /// A helper for function for `find_voicings`, performs the depth first search populating the vector `voicings` with valid voicings.
 fn find_voicings_dfs(
@@ -131,20 +133,34 @@ fn find_voicings_dfs(
         return ();
     }
     let cur_voice = voices[i];
-    let (cur_octave_range, cur_lower_bound, cur_upper_bound) = bounds[i];
+    let (cur_octave_range, cur_lower_bound, cur_upper_bound) =
+        (bounds[i].0.clone(), bounds[i].1, bounds[i].2);
     let highest_oct = cur_octave_range.len() - 1;
     // Use backtracking to generate the voices
     for (j, oct) in cur_octave_range.enumerate() {
         // TODO: Check the bounds for each voice, ensure that two voices are not greater than an octave apart or twelf apart if considering distance between bass and tenor.
         // Also ensure that adjacent voices do not cross eachother i.e. alto is higher than soprano etc...
-        if (j == 0 && cur_voice < cur_lower_bound) || (j == highest_oct && cur_voice > cur_upper_bound)
-
-        
+        if (j == 0 && cur_voice < cur_lower_bound)
+            || (j == highest_oct && cur_voice > cur_upper_bound)
+            || (voicing.len() == 1
+                && compute_semi_tone_dist(
+                    (voicing[voicing.len() - 1].0, voicing[voicing.len() - 1].1),
+                    (cur_voice, oct),
+                ) > 19)
+            || (voicing.len() > 1
+                && compute_semi_tone_dist(
+                    (voicing[voicing.len() - 1].0, voicing[voicing.len() - 1].1),
+                    (cur_voice, oct),
+                ) > 12)
+            || (voicing.len() >= 1
+                && voicing[voicing.len() - 1].1 == oct
+                && voicing[voicing.len() - 1].0 > cur_voice)
         {
             continue;
         }
         voicing.push((cur_voice, oct));
-
+        find_voicings_dfs(voices, bounds, voicing, voicings, i + 1);
+        voicing.pop();
     }
 }
 
@@ -175,8 +191,11 @@ fn find_voicings(soprano: u8, alto: u8, tenor: u8, bass: u8) -> Vec<Vec<(u8, u8)
             SOPRANO_VOICE_PITCH_CLASS_UPPER_BOUND,
         ),
     ];
-
-    find_voicings_dfs(voices, bounds)
+    let mut voicing = vec![];
+    let mut voicings = vec![];
+    // Populate voicings using backtracking/dfs
+    find_voicings_dfs(&voices, &bounds, &mut voicing, &mut voicings, 0);
+    voicings
 }
 
 #[cfg(test)]
