@@ -625,5 +625,20 @@ mod test {
             ],
             voicings
         );
+
+        let voicings = find_voicings(7, 0, 3, 0);
+        println!("{:?}", voicings);
+        assert_eq!(vec![vec![(0, 3), (3, 3), (0, 4), (7, 4)]], voicings);
+
+        let voicings = find_voicings(5, 2, 11, 7);
+        println!("{:?}", voicings);
+
+        assert_eq!(
+            vec![
+                vec![(7, 2), (11, 3), (2, 4), (5, 4)],
+                vec![(7, 3), (11, 3), (2, 4), (5, 4)]
+            ],
+            voicings
+        );
     }
 }
