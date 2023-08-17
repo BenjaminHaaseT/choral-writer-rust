@@ -153,8 +153,9 @@ fn find_voicings_dfs(
                     (cur_voice, oct),
                 ) > 12)
             || (voicing.len() >= 1
-                && voicing[voicing.len() - 1].1 == oct
-                && voicing[voicing.len() - 1].0 > cur_voice)
+                && ((voicing[voicing.len() - 1].1 == oct
+                    && voicing[voicing.len() - 1].0 > cur_voice)
+                    || (voicing[voicing.len() - 1].1 > oct)))
         {
             continue;
         }
@@ -604,5 +605,25 @@ mod test {
         }
 
         assert_eq!(test_key, key_of_c_min);
+    }
+
+    #[test]
+    fn test_find_voicings() {
+        // Test good old root position I in c maj using an open voicing
+        let voicings = find_voicings(0, 4, 7, 0);
+        println!("{:?}", voicings);
+
+        assert_eq!(voicings, vec![vec![(0, 3), (7, 3), (4, 4), (0, 5)]]);
+
+        let voicings = find_voicings(0, 7, 4, 0);
+        println!("{:?}", voicings);
+
+        assert_eq!(
+            vec![
+                vec![(0, 3), (4, 4), (7, 4), (0, 5)],
+                vec![(0, 4), (4, 4), (7, 4), (0, 5)]
+            ],
+            voicings
+        );
     }
 }
