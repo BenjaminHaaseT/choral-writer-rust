@@ -115,10 +115,70 @@ macro_rules! harm_prog_graph {
     };
 }
 
-/// A helper function for checking that we can take the current voice with the current octave given the current state
-// fn voice_is_valid(prev_voice: (u8, u8), cur_voice: (u8, u8)) -> bool {
+#[derive(Debug, Clone, Copy)]
+struct PlaceholderSATB((u8, u8), (u8, u8), (u8, u8), (u8, u8));
 
-// }
+impl PlaceholderSATB {
+    fn new(soprano: (u8, u8), alto: (u8, u8), tenor: (u8, u8), bass: (u8, u8)) -> PlaceholderSATB {
+        PlaceholderSATB(bass, tenor, alto, soprano)
+    }
+}
+
+/// A helper function for `find_smoothest_voicing` it will voicings and scores given some current harmony `from` and a set of remaining pitches
+/// to choose from that are representatives of the remaining voices in the next harmony `to`.
+fn generate_smoothest_voicing(
+    current: PlaceholderSATB,
+    remaining: HashSet<u8>,
+) -> Option<Vec<(PlaceholderSATB, i32)>> {
+    for soprano in &remaining {
+        let sop_score = current.3 .0.dist(soprano) * 2;
+        // TODO: Find closest octave for current voice
+
+        for alto in &remaining {
+            alto_score = current.2 .0.dist(alto);
+            for tenor in &remaining {
+                tenor_score = current.1 .0.dist(tenor);
+            }
+        }
+    }
+
+    None
+}
+
+/// A function for generating the smoothest voicings from a given harmony `from` to a destination harmony `to`.
+/// Function will return a `Option<Vec<(PlaceholderSATB, i32)>>`, Some variant if there is are valid voicing(s), None otherwise.
+/// Each valid harmony generated will return with a score that represents how `smooth` the transition is from `from` to `the generated harmony.
+/// The function will exclude any voicings that have parallel 5ths/octaves or parallel unison voices.
+fn find_smoothest_voicing(
+    from: PlaceholderSATB,
+    to: &HarmonicProgressionNode,
+) -> Option<Vec<(PlaceholderSATB, i32)>> {
+    // Find bass notes that have a distance of within 2 semitones from the bass of `from`
+    let new_bass_pitches = to
+        .pitch_classes
+        .iter()
+        .filter(|pitch_class| from.0 .0.dist(&pitch_class) <= 2)
+        .map(|pitch_class| *pitch_class)
+        .collect::<Vec<u8>>();
+    // Check if we have new bass pitches within a distance of 2 semitones from previous bass, if we don't we are done.
+    if new_bass_pitches.is_empty() {
+        return None;
+    }
+    // for collecting the resulting voicings if any
+    let mut res = vec![];
+    // Check if we have a seventh chord or not
+    if to.pitch_classes.len() == 4 {
+        for new_bass in &new_bass_pitches {
+            let mut remaining_pitches = to.pitch_classes.clone();
+            remaining_pitches.remove(new_bass);
+            if let Some(ref mut voicings) = generate_smoothest_voicing(from, remaining_pitches) {
+                res.append(voicings);
+            }
+        }
+    }
+
+    None
+}
 
 /// A helper for function for `find_voicings`, performs the depth first search populating the vector `voicings` with valid voicings.
 fn find_voicings_dfs(
@@ -169,8 +229,8 @@ fn find_voicings_dfs(
 /// Note this function only generates voicings that ensure the voices are within valid ranges, it does not check that the voicings are valid SATB voicings.
 /// The function essentially performs a depth first seartch to generate all voicings.
 fn find_voicings(soprano: u8, alto: u8, tenor: u8, bass: u8) -> Vec<Vec<(u8, u8)>> {
-    let mut voices = vec![bass, tenor, alto, soprano];
-    let mut bounds = vec![
+    let voices = vec![bass, tenor, alto, soprano];
+    let bounds = vec![
         (
             BASS_VOICE_OCTAVE_RANGE.clone(),
             BASS_VOICE_PITCH_CLASS_LOWER_BOUND,
