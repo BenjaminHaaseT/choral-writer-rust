@@ -4,13 +4,13 @@ use std::iter::FromIterator;
 use std::ops::Range;
 use twelve_et::prelude::*;
 use twelve_et::{
-    compute_semi_tone_dist, PitchClassArithmetic, ALTO_VOICE_OCTAVE_RANGE,
-    ALTO_VOICE_PITCH_CLASS_LOWER_BOUND, ALTO_VOICE_PITCH_CLASS_UPPER_BOUND,
-    BASS_VOICE_OCTAVE_RANGE, BASS_VOICE_PITCH_CLASS_LOWER_BOUND,
-    BASS_VOICE_PITCH_CLASS_UPPER_BOUND, SATB, SOPRANO_VOICE_OCTAVE_RANGE,
-    SOPRANO_VOICE_PITCH_CLASS_LOWER_BOUND, SOPRANO_VOICE_PITCH_CLASS_UPPER_BOUND,
-    TENOR_VOICE_OCTAVE_RANGE, TENOR_VOICE_PITCH_CLASS_LOWER_BOUND,
-    TENOR_VOICE_PITCH_CLASS_UPPER_BOUND,
+    compute_semi_tone_dist, compute_semi_tone_dist_signed, validate_harmony, PitchClassArithmetic,
+    ALTO_VOICE_OCTAVE_RANGE, ALTO_VOICE_PITCH_CLASS_LOWER_BOUND,
+    ALTO_VOICE_PITCH_CLASS_UPPER_BOUND, BASS_VOICE_OCTAVE_RANGE,
+    BASS_VOICE_PITCH_CLASS_LOWER_BOUND, BASS_VOICE_PITCH_CLASS_UPPER_BOUND, SATB,
+    SOPRANO_VOICE_OCTAVE_RANGE, SOPRANO_VOICE_PITCH_CLASS_LOWER_BOUND,
+    SOPRANO_VOICE_PITCH_CLASS_UPPER_BOUND, TENOR_VOICE_OCTAVE_RANGE,
+    TENOR_VOICE_PITCH_CLASS_LOWER_BOUND, TENOR_VOICE_PITCH_CLASS_UPPER_BOUND,
 };
 
 /// Struct that acts as a single node in the directed graph of harmonic progression.
@@ -124,24 +124,72 @@ impl PlaceholderSATB {
     }
 }
 
+/// A helper function for computing the smallest number of semitone needed to get from one pitch to another.
+fn find_semi_tone_dist(pitch1: u8, pitch2: u8) -> i32 {
+    let dist1 = pitch1.dist(&pitch2);
+    let dist2 = pitch2.dist(&pitch1);
+    if dist1 <= dist2 {
+        dist1 as i32
+    } else {
+        -(dist2 as i32)
+    }
+}
+
+/// Helper function for converting semitones from 0 into (pitch_class, octave) format
+fn convert_to_pitch_oct(semitones: u32) -> (u8, u8) {
+    let oct = semitones / 12;
+    let pitch_class = semitones % 12;
+    (pitch_class as u8, oct as u8)
+}
+
+/// Function that returns the (pitch_class, octave) of the closest pitch with pitch class `new_pitch_class` from `current`. Converts it
+/// into (pitch_class, octave) form and returns the 'score' of the transition weighted by `weight`.
+fn new_pitch_with_score(
+    current: (u8, u8),
+    new_pitch_class: u8,
+    transition_weight: i32,
+) -> ((u8, u8), i32) {
+    let dist = match (
+        current.0.dist(&new_pitch_class),
+        new_pitch_class.dist(&current.0),
+    ) {
+        (d1, d2) if d1 <= d2 => d1 as i32,
+        (d1, d2) => -(d2 as i32),
+    };
+    let score = transition_weight * dist.abs();
+    let current_semitones = 12 * (current.1 as i32) + (current.0 as i32);
+    let new_pitch_semitones = current_semitones + dist;
+    let new_pitch = convert_to_pitch_oct(new_pitch_semitones as u32);
+    (new_pitch, score)
+}
+
 /// A helper function for `find_smoothest_voicing` it will voicings and scores given some current harmony `from` and a set of remaining pitches
 /// to choose from that are representatives of the remaining voices in the next harmony `to`.
 fn generate_smoothest_voicing(
     current: PlaceholderSATB,
+    new_root: u8,
+    new_bass: (u8, u8),
     remaining: HashSet<u8>,
 ) -> Option<Vec<(PlaceholderSATB, i32)>> {
+    let mut result: Vec<(PlaceholderSATB, i32)> = vec![];
     for soprano in &remaining {
-        let sop_score = current.3 .0.dist(soprano) * 2;
-        // TODO: Find closest octave for current voice
-
+        let (new_soprano, soprano_score) = new_pitch_with_score(current.3, *soprano, 2);
         for alto in &remaining {
-            alto_score = current.2 .0.dist(alto);
+            let (new_alto, alto_score) = new_pitch_with_score(current.2, *alto, 1);
             for tenor in &remaining {
-                tenor_score = current.1 .0.dist(tenor);
+                let (new_tenor, tenor_score) = new_pitch_with_score(current.1, *tenor, 1);
+                if validate_harmony(new_root, new_soprano, new_alto, new_tenor, new_bass) {
+                    result.push((
+                        PlaceholderSATB::new(new_soprano, new_alto, new_tenor, new_bass),
+                        soprano_score + alto_score + tenor_score,
+                    ));
+                }
             }
         }
     }
-
+    if !result.is_empty() {
+        return Some(result);
+    }
     None
 }
 
@@ -164,14 +212,20 @@ fn find_smoothest_voicing(
     if new_bass_pitches.is_empty() {
         return None;
     }
+
     // for collecting the resulting voicings if any
     let mut res = vec![];
+
     // Check if we have a seventh chord or not
+    // TODO: Finish the function!!
     if to.pitch_classes.len() == 4 {
         for new_bass in &new_bass_pitches {
             let mut remaining_pitches = to.pitch_classes.clone();
             remaining_pitches.remove(new_bass);
-            if let Some(ref mut voicings) = generate_smoothest_voicing(from, remaining_pitches) {
+            let (bass_oct, _) = new_pitch_with_score(from.0, *new_bass, 0);
+            if let Some(ref mut voicings) =
+                generate_smoothest_voicing(from, to.root, bass_oct, remaining_pitches)
+            {
                 res.append(voicings);
             }
         }
