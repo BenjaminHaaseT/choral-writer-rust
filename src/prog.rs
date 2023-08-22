@@ -119,7 +119,12 @@ macro_rules! harm_prog_graph {
 struct PlaceholderSATB((u8, u8), (u8, u8), (u8, u8), (u8, u8));
 
 impl PlaceholderSATB {
-    fn new(soprano: (u8, u8), alto: (u8, u8), tenor: (u8, u8), bass: (u8, u8)) -> PlaceholderSATB {
+    pub fn new(
+        soprano: (u8, u8),
+        alto: (u8, u8),
+        tenor: (u8, u8),
+        bass: (u8, u8),
+    ) -> PlaceholderSATB {
         PlaceholderSATB(bass, tenor, alto, soprano)
     }
 }
@@ -154,9 +159,13 @@ fn new_pitch_with_score(
         new_pitch_class.dist(&current.0),
     ) {
         (d1, d2) if d1 <= d2 => d1 as i32,
-        (d1, d2) => -(d2 as i32),
+        (_d1, d2) => -(d2 as i32),
     };
-    let score = transition_weight * dist.abs();
+    let score = if dist.abs() > 2 {
+        transition_weight * ((dist.abs() / 2) + dist.abs() % 2)
+    } else {
+        0
+    };
     let current_semitones = 12 * (current.1 as i32) + (current.0 as i32);
     let new_pitch_semitones = current_semitones + dist;
     let new_pitch = convert_to_pitch_oct(new_pitch_semitones as u32);
@@ -205,7 +214,9 @@ fn find_smoothest_voicing(
     let new_bass_pitches = to
         .pitch_classes
         .iter()
-        .filter(|pitch_class| from.0 .0.dist(&pitch_class) <= 2)
+        .filter(|pitch_class| {
+            from.0 .0.dist(&pitch_class) <= 2 || pitch_class.dist(&from.0 .0) <= 2
+        })
         .map(|pitch_class| *pitch_class)
         .collect::<Vec<u8>>();
     // Check if we have new bass pitches within a distance of 2 semitones from previous bass, if we don't we are done.
@@ -216,19 +227,23 @@ fn find_smoothest_voicing(
     // for collecting the resulting voicings if any
     let mut res = vec![];
 
-    // Check if we have a seventh chord or not
-    // TODO: Finish the function!!
-    if to.pitch_classes.len() == 4 {
-        for new_bass in &new_bass_pitches {
-            let mut remaining_pitches = to.pitch_classes.clone();
-            remaining_pitches.remove(new_bass);
-            let (bass_oct, _) = new_pitch_with_score(from.0, *new_bass, 0);
-            if let Some(ref mut voicings) =
-                generate_smoothest_voicing(from, to.root, bass_oct, remaining_pitches)
-            {
-                res.append(voicings);
-            }
+    // For each new potential bass voice, generate all possible voicings
+    for new_bass in new_bass_pitches {
+        let mut remaining = to.pitch_classes.clone();
+        if to.root.is_third(&new_bass) || to.root.is_seventh(&new_bass) {
+            remaining.remove(&new_bass);
         }
+        let (new_bass_oct, _) = new_pitch_with_score(from.0, new_bass, 0);
+        if let Some(ref mut voicings) =
+            generate_smoothest_voicing(from, to.root, new_bass_oct, remaining)
+        {
+            res.append(voicings);
+        }
+    }
+
+    if !res.is_empty() {
+        res.sort_by_key(|(_, score)| *score);
+        return Some(res);
     }
 
     None
@@ -315,6 +330,8 @@ fn find_voicings(soprano: u8, alto: u8, tenor: u8, bass: u8) -> Vec<Vec<(u8, u8)
 
 #[cfg(test)]
 mod test {
+    use std::thread::current;
+
     use super::*;
 
     #[test]
@@ -754,5 +771,40 @@ mod test {
             ],
             voicings
         );
+    }
+
+    #[test]
+    fn test_generate_smoothest_voicings() {
+        let current_harmony = PlaceholderSATB::new((0, 5), (4, 4), (7, 3), (0, 3));
+
+        // Test to second inversion V_7
+        let mut remaining = HashSet::new();
+        remaining.insert(7);
+        remaining.insert(11);
+        remaining.insert(5);
+        let next_voicing = generate_smoothest_voicing(current_harmony, 7, (2, 3), remaining);
+        println!("{:?}", next_voicing);
+
+        // Test transition to first inversion V_7
+        let mut remaining = HashSet::new();
+        remaining.insert(2);
+        remaining.insert(5);
+        remaining.insert(7);
+        let next_voicing = generate_smoothest_voicing(current_harmony, 7, (11, 2), remaining);
+        println!("{:?}", next_voicing);
+    }
+
+    #[test]
+    fn test_find_smoothest_voicing() {
+        let current_harmony = PlaceholderSATB::new((0, 5), (4, 4), (7, 3), (0, 3));
+        let major_V_7 = harm_prog_node!(0x42 as u8; 7; 11, 2, 5);
+        let next_voicings = find_smoothest_voicing(current_harmony, &major_V_7);
+
+        println!("{:?}", next_voicings);
+
+        let major_IV = harm_prog_node!(0xa6 as u8; 5; 9, 0);
+        let next_voicings = find_smoothest_voicing(current_harmony, &major_IV);
+
+        println!("{:?}", next_voicings);
     }
 }
