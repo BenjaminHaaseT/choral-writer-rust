@@ -171,6 +171,60 @@ fn new_pitch_with_score(
     (new_pitch, score)
 }
 
+/// Helper function that will check for parallel octaves between transitions.
+fn no_parallel_oct(
+    current: &PlaceholderSATB,
+    next_soprano: (u8, u8),
+    next_alto: (u8, u8),
+    next_tenor: (u8, u8),
+    next_bass: (u8, u8),
+) -> bool {
+    let consecutive_flag = if current.0.0 == current.1.0 {
+        next_soprano.0 != next_alto.0
+    } else if current.0.0 == current.2.0 {
+        next_soprano.0 != next_tenor.0
+    } else if current.0.0 == current.3.0 {
+        next_soprano.0 != next_bass.0
+    } else if current.1.0 == current.2.0 {
+        next_alto.0 != next_tenor.0
+    } else if current.1.0 == current.3.0 {
+        next_alto.0 != next_bass.0
+    } else if current.2.0 == current.3.0 {
+        next_tenor.0 != next_bass.0
+    };
+    let hidden_flag = if next_soprano.0 == next_bass.0 {
+        compute_semi_tone_dist(current.0, next_soprano) <= 2
+    } else {
+        true
+    };
+
+    consecutive_flag && hidden_flag
+}
+
+/// Helper function that will check for parallel fifths between transitions.
+fn no_parallel_fifths(
+    current: &PlaceholderSATB,
+    next_soprano: (u8, u8),
+    next_alto: (u8, u8),
+    next_tenor: (u8, u8),
+    next_bass: (u8, u8),
+) -> bool {
+    let mut consecutive_flag = if current.3.0.dist(&current.0.0) == 7 {
+
+    }
+}
+
+/// Function that determines if the given transition from one voicing to the next is valid. In
+/// short it checks for parallel fifths/octaves as well as hidden fifths/octaves.
+fn is_valid(
+    current: &PlaceholderSATB,
+    next_soprano: (u8, u8),
+    next_alto: (u8, u8),
+    next_tenor: (u8, u8),
+    next_bass: (u8, u8),
+) -> bool {
+}
+
 /// A helper function for `find_smoothest_voicing` it will voicings and scores given some current harmony `from` and a set of remaining pitches
 /// to choose from that are representatives of the remaining voices in the next harmony `to`.
 fn generate_smoothest_voicing(
@@ -229,8 +283,11 @@ fn find_smoothest_voicing(
     // For each new potential bass voice, generate all possible voicings
     for new_bass in new_bass_pitches {
         let mut remaining = to.pitch_classes.clone();
-        if (to.root.is_third(&new_bass) && to.root.dist(&new_bass) == 4 && !remaining.contains(&((to.root + 6) % 12)))
-            || to.root.is_seventh(&new_bass) {
+        if (to.root.is_third(&new_bass)
+            && to.root.dist(&new_bass) == 4
+            && !remaining.contains(&((to.root + 6) % 12)))
+            || to.root.is_seventh(&new_bass)
+        {
             remaining.remove(&new_bass);
         }
         let (new_bass_oct, _) = new_pitch_with_score(from.0, new_bass, 0);
@@ -267,8 +324,7 @@ fn find_voicings_dfs(
     let highest_oct = cur_octave_range.len() - 1;
     // Use backtracking to generate the voices
     for (j, oct) in cur_octave_range.enumerate() {
-        // TODO: Check the bounds for each voice, ensure that two voices are not greater than an octave apart or twelf apart if considering distance between bass and tenor.
-        // Also ensure that adjacent voices do not cross eachother i.e. alto is higher than soprano etc...
+        // Also ensure that adjacent voices do not cross each other i.e. alto is higher than soprano etc...
         if (j == 0 && cur_voice < cur_lower_bound)
             || (j == highest_oct && cur_voice > cur_upper_bound)
             || (voicing.len() == 1
