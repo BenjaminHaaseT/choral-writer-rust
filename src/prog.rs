@@ -128,7 +128,6 @@ impl PlaceholderSATB {
         PlaceholderSATB(bass, tenor, alto, soprano)
     }
 }
-
 /// A helper function for computing the smallest number of semitone needed to get from one pitch to another.
 fn find_semi_tone_dist(pitch1: u8, pitch2: u8) -> i32 {
     let dist1 = pitch1.dist(&pitch2);
@@ -230,7 +229,8 @@ fn find_smoothest_voicing(
     // For each new potential bass voice, generate all possible voicings
     for new_bass in new_bass_pitches {
         let mut remaining = to.pitch_classes.clone();
-        if to.root.is_third(&new_bass) || to.root.is_seventh(&new_bass) {
+        if (to.root.is_third(&new_bass) && to.root.dist(&new_bass) == 4 && !remaining.contains(&((to.root + 6) % 12)))
+            || to.root.is_seventh(&new_bass) {
             remaining.remove(&new_bass);
         }
         let (new_bass_oct, _) = new_pitch_with_score(from.0, new_bass, 0);
@@ -804,6 +804,23 @@ mod test {
 
         let major_IV = harm_prog_node!(0xa6 as u8; 5; 9, 0);
         let next_voicings = find_smoothest_voicing(current_harmony, &major_IV);
+
+        println!("{:?}", next_voicings);
+
+        // Test from ii to V
+        let current_harmony = PlaceholderSATB::new((2, 5), (5, 4), (9, 3), (2, 3));
+        let next_voicings = find_smoothest_voicing(current_harmony, &major_V_7);
+
+        println!("{:?}", next_voicings);
+
+        let current_harmony = PlaceholderSATB::new((2, 5), (2, 4), (9, 3), (5, 3));
+        let next_voicings = find_smoothest_voicing(current_harmony, &major_V_7);
+
+        println!("{:?}", next_voicings);
+
+        let current_harmony = PlaceholderSATB::new((0, 5), (7, 4), (0, 4), (4, 3));
+        let dim_vii = harm_prog_node!(0x22 as u8; 11; 2, 5);
+        let next_voicings = find_smoothest_voicing(current_harmony, &dim_vii);
 
         println!("{:?}", next_voicings);
     }
