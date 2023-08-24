@@ -200,21 +200,21 @@ fn no_parallel_fifths(
     next_tenor: (u8, u8),
     next_bass: (u8, u8),
 ) -> bool {
-    (compute_semi_tone_dist(current.0, current.1) != 7
-        || compute_semi_tone_dist(next_soprano, next_alto) != 7)
-        && (compute_semi_tone_dist(current.0, current.2) != 7
-            || compute_semi_tone_dist(next_soprano, next_tenor) != 7)
-        && (compute_semi_tone_dist(current.0, current.3) != 7
-            || compute_semi_tone_dist(next_soprano, next_bass) != 7)
-        && (compute_semi_tone_dist(current.1, current.2) != 7
-            || compute_semi_tone_dist(next_alto, next_tenor) != 7)
-        && (compute_semi_tone_dist(current.1, current.3) != 7
-            || compute_semi_tone_dist(next_alto, next_bass) != 7)
-        && (compute_semi_tone_dist(current.2, current.3) != 7
-            || compute_semi_tone_dist(next_tenor, next_bass) != 7)
+    (compute_semi_tone_dist(current.0, current.1) % 12 != 7
+        || compute_semi_tone_dist(next_soprano, next_alto) % 12 != 7)
+        && (compute_semi_tone_dist(current.0, current.2) % 12 != 7
+            || compute_semi_tone_dist(next_soprano, next_tenor) % 12 != 7)
+        && (compute_semi_tone_dist(current.0, current.3) % 12 != 7
+            || compute_semi_tone_dist(next_soprano, next_bass) % 12 != 7)
+        && (compute_semi_tone_dist(current.1, current.2) % 12 != 7
+            || compute_semi_tone_dist(next_alto, next_tenor) % 12 != 7)
+        && (compute_semi_tone_dist(current.1, current.3) % 12 != 7
+            || compute_semi_tone_dist(next_alto, next_bass) % 12 != 7)
+        && (compute_semi_tone_dist(current.2, current.3) % 12 != 7
+            || compute_semi_tone_dist(next_tenor, next_bass) % 12 != 7)
         && (compute_semi_tone_dist_signed(current.0, next_soprano) & -0x8000_0000
             != compute_semi_tone_dist_signed(current.3, next_bass) & -0x8000_0000
-            || compute_semi_tone_dist(next_soprano, next_bass) != 7
+            || compute_semi_tone_dist(next_soprano, next_bass) % 12 != 7
             || (compute_semi_tone_dist(current.0, next_soprano) <= 2
                 && compute_semi_tone_dist(current.3, next_bass) <= 2))
 }
@@ -913,6 +913,14 @@ mod test {
 
     #[test]
     fn test_parallel_fifths() {
+        // Contains parallel octaves
+        let current_harmony = PlaceholderSATB::new((7,4), (4, 4), (0, 4), (0, 3));
+        println!("{}", no_parallel_fifths(&current_harmony, (9, 4), (5, 4), (2, 4), (2, 3)));
+        assert!(!no_parallel_fifths(&current_harmony, (9, 4), (5, 4), (2, 4), (2, 3)));
+
+        let current_harmony = PlaceholderSATB::new((0, 5), (5, 4), (9, 3), (5, 3));
+        println!("{}", no_parallel_fifths(&current_harmony, (2, 5), (5, 4), (11, 3), (7, 3)));
+        assert!(!no_parallel_fifths(&current_harmony, (2, 5), (5, 4), (11, 3), (7, 3)));
 
     }
 
