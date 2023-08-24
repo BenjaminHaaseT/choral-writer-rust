@@ -125,7 +125,7 @@ impl PlaceholderSATB {
         tenor: (u8, u8),
         bass: (u8, u8),
     ) -> PlaceholderSATB {
-        PlaceholderSATB(bass, tenor, alto, soprano)
+        PlaceholderSATB(soprano, alto, tenor, bass)
     }
 }
 /// A helper function for computing the smallest number of semitone needed to get from one pitch to another.
@@ -179,26 +179,17 @@ fn no_parallel_oct(
     next_tenor: (u8, u8),
     next_bass: (u8, u8),
 ) -> bool {
-    let consecutive_flag = if current.0.0 == current.1.0 {
-        next_soprano.0 != next_alto.0
-    } else if current.0.0 == current.2.0 {
-        next_soprano.0 != next_tenor.0
-    } else if current.0.0 == current.3.0 {
-        next_soprano.0 != next_bass.0
-    } else if current.1.0 == current.2.0 {
-        next_alto.0 != next_tenor.0
-    } else if current.1.0 == current.3.0 {
-        next_alto.0 != next_bass.0
-    } else if current.2.0 == current.3.0 {
-        next_tenor.0 != next_bass.0
-    };
-    let hidden_flag = if next_soprano.0 == next_bass.0 {
-        compute_semi_tone_dist(current.0, next_soprano) <= 2
-    } else {
-        true
-    };
-
-    consecutive_flag && hidden_flag
+    (current.0 .0 != current.1 .0 || next_soprano.0 != next_alto.0)
+        && (current.0 .0 != current.2 .0 || next_soprano.0 != next_tenor.0)
+        && (current.0 .0 != current.3 .0 || next_soprano.0 != next_bass.0)
+        && (current.1 .0 != current.2 .0 || next_alto.0 != next_tenor.0)
+        && (current.1 .0 != current.3 .0 || next_alto.0 != next_bass.0)
+        && (current.2 .0 != current.3 .0 || next_tenor.0 != next_bass.0)
+        && (compute_semi_tone_dist_signed(current.0, next_soprano) & -0x8000_0000_i32
+            != compute_semi_tone_dist_signed(current.3, next_bass) & -0x8000_0000_i32
+            || next_soprano.0 != next_bass.0
+            || (compute_semi_tone_dist(current.0, next_soprano) <= 2
+                && compute_semi_tone_dist(current.3, next_bass) <= 2))
 }
 
 /// Helper function that will check for parallel fifths between transitions.
@@ -209,9 +200,23 @@ fn no_parallel_fifths(
     next_tenor: (u8, u8),
     next_bass: (u8, u8),
 ) -> bool {
-    let mut consecutive_flag = if current.3.0.dist(&current.0.0) == 7 {
-
-    }
+    (compute_semi_tone_dist(current.0, current.1) != 7
+        || compute_semi_tone_dist(next_soprano, next_alto) != 7)
+        && (compute_semi_tone_dist(current.0, current.2) != 7
+            || compute_semi_tone_dist(next_soprano, next_tenor) != 7)
+        && (compute_semi_tone_dist(current.0, current.3) != 7
+            || compute_semi_tone_dist(next_soprano, next_bass) != 7)
+        && (compute_semi_tone_dist(current.1, current.2) != 7
+            || compute_semi_tone_dist(next_alto, next_tenor) != 7)
+        && (compute_semi_tone_dist(current.1, current.3) != 7
+            || compute_semi_tone_dist(next_alto, next_bass) != 7)
+        && (compute_semi_tone_dist(current.2, current.3) != 7
+            || compute_semi_tone_dist(next_tenor, next_bass) != 7)
+        && (compute_semi_tone_dist_signed(current.0, next_soprano) & -0x8000_0000
+            != compute_semi_tone_dist_signed(current.3, next_bass) & -0x8000_0000
+            || compute_semi_tone_dist(next_soprano, next_bass) != 7
+            || (compute_semi_tone_dist(current.0, next_soprano) <= 2
+                && compute_semi_tone_dist(current.3, next_bass) <= 2))
 }
 
 /// Function that determines if the given transition from one voicing to the next is valid. In
@@ -223,6 +228,8 @@ fn is_valid(
     next_tenor: (u8, u8),
     next_bass: (u8, u8),
 ) -> bool {
+    no_parallel_fifths(current, next_soprano, next_alto, next_tenor, next_bass)
+        && no_parallel_oct(current, next_soprano, next_alto, next_tenor, next_bass)
 }
 
 /// A helper function for `find_smoothest_voicing` it will voicings and scores given some current harmony `from` and a set of remaining pitches
@@ -272,6 +279,7 @@ fn find_smoothest_voicing(
         })
         .map(|pitch_class| *pitch_class)
         .collect::<Vec<u8>>();
+
     // Check if we have new bass pitches within a distance of 2 semitones from previous bass, if we don't we are done.
     if new_bass_pitches.is_empty() {
         return None;
@@ -879,5 +887,37 @@ mod test {
         let next_voicings = find_smoothest_voicing(current_harmony, &dim_vii);
 
         println!("{:?}", next_voicings);
+    }
+
+    #[test]
+    fn test_parallel_octaves() {
+        // Contains parallel octaves
+        let current_harmony = PlaceholderSATB::new((7,4), (4, 4), (0, 4), (0, 3));
+        println!("{}", no_parallel_oct(&current_harmony, (9, 4), (5, 4), (2, 4), (2, 3)));
+        assert!(!no_parallel_oct(&current_harmony, (9, 4), (5, 4), (2, 4), (2, 3)));
+
+        // Contains parallel octaves
+        let current_harmony = PlaceholderSATB::new((2, 5), (7, 4), (2, 4), (11, 2));
+        println!("{}", no_parallel_oct(&current_harmony, (0, 5), (4, 4), (0, 4), (9, 3)));
+        assert!(!no_parallel_oct(&current_harmony, (0, 5), (4, 4), (0, 4), (9, 3)));
+
+        // Should have no parallel octaves
+        println!("{}", no_parallel_oct(&current_harmony, (0, 5), (7, 4), (4, 4), (0, 3)));
+        assert!(no_parallel_oct(&current_harmony, (0, 5), (7, 4), (4, 4), (0, 3)));
+
+        // Hidden octaves
+        let current_harmony = PlaceholderSATB::new((7, 4), (2, 4), (7, 3), (11, 2));
+        println!("{}", no_parallel_oct(&current_harmony, (0, 5), (4, 4), (7, 3), (0, 3)));
+        assert!(!no_parallel_oct(&current_harmony, (0, 5), (4, 4), (7, 3), (0, 3)));
+    }
+
+    #[test]
+    fn test_parallel_fifths() {
+
+    }
+
+    #[test]
+    fn test_is_valid() {
+
     }
 }
