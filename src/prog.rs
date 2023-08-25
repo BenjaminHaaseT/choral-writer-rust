@@ -2,8 +2,8 @@
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::ops::Range;
-use twelve_et::prelude::*;
 use std::sync::atomic::AtomicI32;
+use twelve_et::prelude::*;
 use twelve_et::{
     compute_semi_tone_dist, compute_semi_tone_dist_signed, validate_harmony, PitchClassArithmetic,
     ALTO_VOICE_OCTAVE_RANGE, ALTO_VOICE_PITCH_CLASS_LOWER_BOUND,
@@ -180,12 +180,24 @@ fn no_parallel_oct(
     next_tenor: (u8, u8),
     next_bass: (u8, u8),
 ) -> bool {
-    (current.0 .0 != current.1 .0 || next_soprano.0 != next_alto.0 || (current.0.0 == next_soprano.0 && current.1.0 == next_alto.0))
-        && (current.0 .0 != current.2 .0 || next_soprano.0 != next_tenor.0 || (current.0.0 == next_soprano.0 && current.2.0 == next_tenor.0))
-        && (current.0 .0 != current.3 .0 || next_soprano.0 != next_bass.0 || (current.0.0 == next_soprano.0 && current.3.0 == next_bass.0))
-        && (current.1 .0 != current.2 .0 || next_alto.0 != next_tenor.0 || (current.1.0 == next_alto.0 && current.2.0 == next_tenor.0))
-        && (current.1 .0 != current.3 .0 || next_alto.0 != next_bass.0 || (current.1.0 == next_alto.0 && current.3.0 == next_bass.0))
-        && (current.2 .0 != current.3 .0 || next_tenor.0 != next_bass.0 || (current.2.0 == next_tenor.0 && current.3.0 == next_bass.0))
+    (current.0 .0 != current.1 .0
+        || next_soprano.0 != next_alto.0
+        || (current.0 .0 == next_soprano.0 && current.1 .0 == next_alto.0))
+        && (current.0 .0 != current.2 .0
+            || next_soprano.0 != next_tenor.0
+            || (current.0 .0 == next_soprano.0 && current.2 .0 == next_tenor.0))
+        && (current.0 .0 != current.3 .0
+            || next_soprano.0 != next_bass.0
+            || (current.0 .0 == next_soprano.0 && current.3 .0 == next_bass.0))
+        && (current.1 .0 != current.2 .0
+            || next_alto.0 != next_tenor.0
+            || (current.1 .0 == next_alto.0 && current.2 .0 == next_tenor.0))
+        && (current.1 .0 != current.3 .0
+            || next_alto.0 != next_bass.0
+            || (current.1 .0 == next_alto.0 && current.3 .0 == next_bass.0))
+        && (current.2 .0 != current.3 .0
+            || next_tenor.0 != next_bass.0
+            || (current.2 .0 == next_tenor.0 && current.3 .0 == next_bass.0))
         && (compute_semi_tone_dist_signed(current.0, next_soprano) & -0x8000_0000_i32
             != compute_semi_tone_dist_signed(current.3, next_bass) & -0x8000_0000_i32
             || next_soprano.0 != next_bass.0
@@ -203,22 +215,22 @@ fn no_parallel_fifths(
 ) -> bool {
     (compute_semi_tone_dist(current.0, current.1) % 12 != 7
         || compute_semi_tone_dist(next_soprano, next_alto) % 12 != 7
-    || (current.0.0 == next_soprano.0 && current.1.0 == next_alto.0))
+        || (current.0 .0 == next_soprano.0 && current.1 .0 == next_alto.0))
         && (compute_semi_tone_dist(current.0, current.2) % 12 != 7
             || compute_semi_tone_dist(next_soprano, next_tenor) % 12 != 7
-        || (current.0.0 == next_soprano.0 && current.2.0 == next_tenor.0))
+            || (current.0 .0 == next_soprano.0 && current.2 .0 == next_tenor.0))
         && (compute_semi_tone_dist(current.0, current.3) % 12 != 7
             || compute_semi_tone_dist(next_soprano, next_bass) % 12 != 7
-        || (current.0.0 == next_soprano.0 && current.3.0 == next_bass.0))
+            || (current.0 .0 == next_soprano.0 && current.3 .0 == next_bass.0))
         && (compute_semi_tone_dist(current.1, current.2) % 12 != 7
             || compute_semi_tone_dist(next_alto, next_tenor) % 12 != 7
-        || (current.1.0 == next_alto.0 && current.2.0 == next_tenor.0))
+            || (current.1 .0 == next_alto.0 && current.2 .0 == next_tenor.0))
         && (compute_semi_tone_dist(current.1, current.3) % 12 != 7
             || compute_semi_tone_dist(next_alto, next_bass) % 12 != 7
-        || (current.1.0 == next_alto.0 && current.3.0 == next_bass.0))
+            || (current.1 .0 == next_alto.0 && current.3 .0 == next_bass.0))
         && (compute_semi_tone_dist(current.2, current.3) % 12 != 7
             || compute_semi_tone_dist(next_tenor, next_bass) % 12 != 7
-        || (current.2.0 == next_tenor.0 && current.3.0 == next_bass.0))
+            || (current.2 .0 == next_tenor.0 && current.3 .0 == next_bass.0))
         && (compute_semi_tone_dist_signed(current.0, next_soprano) & -0x8000_0000
             != compute_semi_tone_dist_signed(current.3, next_bass) & -0x8000_0000
             || compute_semi_tone_dist(next_soprano, next_bass) % 12 != 7
@@ -273,7 +285,7 @@ fn generate_smoothest_voicing(
 /// Function will return a `Option<Vec<(PlaceholderSATB, i32)>>`, Some variant if there is are valid voicing(s), None otherwise.
 /// Each valid harmony generated will return with a score that represents how `smooth` the transition is from `from` to `the generated harmony.
 /// The function will exclude any voicings that have parallel 5ths/octaves or parallel unison voices.
-fn find_smoothest_voicing(
+fn find_smoothest_voicing_transition(
     from: PlaceholderSATB,
     to: &HarmonicProgressionNode,
 ) -> Option<Vec<(PlaceholderSATB, i32)>> {
@@ -397,6 +409,68 @@ fn find_voicings(soprano: u8, alto: u8, tenor: u8, bass: u8) -> Vec<Vec<(u8, u8)
     // Populate voicings using backtracking/dfs
     find_voicings_dfs(&voices, &bounds, &mut voicing, &mut voicings, 0);
     voicings
+}
+
+/// Helper function for generating all possible voicings of a chord, performs the dfs finding all valid voicings.
+fn find_all_possible_voicings_dfs(
+    voices: &HashSet<u8>,
+    current_voices: &mut HashSet<u8>,
+    current_arrangement: &mut Vec<u8>,
+    result: &mut Vec<Vec<u8>>,
+) {
+    if current_arrangement.len() == 4 {
+        result.push(current_arrangement.clone());
+        return ();
+    }
+    for voice in voices {
+        if !current_voices.contains(voice) {
+            current_voices.insert(*voice);
+            current_arrangement.push(*voice);
+            find_all_possible_voicings_dfs(voices, current_voices, current_arrangement, result);
+            current_voices.remove(voice);
+            current_arrangement.pop();
+        }
+    }
+}
+
+/// Helper function for generating all possible voicings of a chord, given
+/// a bass note and remaining set of voices to choose from.
+fn find_all_possible_voicings(bass: u8, voices: HashSet<u8>) -> Vec<PlaceholderSATB> {
+    let mut result = Vec::new();
+    let mut current_arrangement = vec![bass];
+    let mut current_voices = HashSet::new();
+    find_all_possible_voicings_dfs(
+        &voices,
+        &mut current_voices,
+        &mut current_arrangement,
+        &mut result,
+    );
+    result
+        .into_iter()
+        .map(|v| find_voicings(v[1], v[2], v[3], v[0]))
+        .flat_map(|harmonies| {
+            harmonies
+                .into_iter()
+                .map(|harmony| PlaceholderSATB::new(harmony[3], harmony[2], harmony[1], harmony[0]))
+        })
+        .collect::<Vec<PlaceholderSATB>>()
+}
+
+/// Function to find the smoothest choral given a `HarmonicProgresionGraph` `harmonic_progression` and number of steps to walk the graph `n`.
+/// Return a randomly generated choral from root position I to some predominant voicing of V,
+/// where  the nth chord of the choral is some predominant voicing of V. If there are multiple chorals
+/// that are equally smooth, the funciton will choose a random one.
+///
+pub fn generate_choral(
+    harmonic_progression: HarmonicProgressionGraph,
+    n: i32,
+) -> Option<Vec<PlaceholderSATB>> {
+    // First generate a random root position I chord
+    let bass = harmonic_progression.graph[&1].root;
+    let voices = harmonic_progression.graph[&1].pitch_classes.clone();
+    let mut voicing_arrangements = vec![];
+
+    None
 }
 
 #[cfg(test)]
@@ -900,64 +974,155 @@ mod test {
     #[test]
     fn test_parallel_octaves() {
         // Contains parallel octaves
-        let current_harmony = PlaceholderSATB::new((7,4), (4, 4), (0, 4), (0, 3));
-        println!("{}", no_parallel_oct(&current_harmony, (9, 4), (5, 4), (2, 4), (2, 3)));
-        assert!(!no_parallel_oct(&current_harmony, (9, 4), (5, 4), (2, 4), (2, 3)));
+        let current_harmony = PlaceholderSATB::new((7, 4), (4, 4), (0, 4), (0, 3));
+        println!(
+            "{}",
+            no_parallel_oct(&current_harmony, (9, 4), (5, 4), (2, 4), (2, 3))
+        );
+        assert!(!no_parallel_oct(
+            &current_harmony,
+            (9, 4),
+            (5, 4),
+            (2, 4),
+            (2, 3)
+        ));
 
         // Contains parallel octaves
         let current_harmony = PlaceholderSATB::new((2, 5), (7, 4), (2, 4), (11, 2));
-        println!("{}", no_parallel_oct(&current_harmony, (0, 5), (4, 4), (0, 4), (9, 3)));
-        assert!(!no_parallel_oct(&current_harmony, (0, 5), (4, 4), (0, 4), (9, 3)));
+        println!(
+            "{}",
+            no_parallel_oct(&current_harmony, (0, 5), (4, 4), (0, 4), (9, 3))
+        );
+        assert!(!no_parallel_oct(
+            &current_harmony,
+            (0, 5),
+            (4, 4),
+            (0, 4),
+            (9, 3)
+        ));
 
         // Should have no parallel octaves
-        println!("{}", no_parallel_oct(&current_harmony, (0, 5), (7, 4), (4, 4), (0, 3)));
-        assert!(no_parallel_oct(&current_harmony, (0, 5), (7, 4), (4, 4), (0, 3)));
+        println!(
+            "{}",
+            no_parallel_oct(&current_harmony, (0, 5), (7, 4), (4, 4), (0, 3))
+        );
+        assert!(no_parallel_oct(
+            &current_harmony,
+            (0, 5),
+            (7, 4),
+            (4, 4),
+            (0, 3)
+        ));
 
         // Hidden octaves
         let current_harmony = PlaceholderSATB::new((7, 4), (2, 4), (7, 3), (11, 2));
-        println!("{}", no_parallel_oct(&current_harmony, (0, 5), (4, 4), (7, 3), (0, 3)));
-        assert!(!no_parallel_oct(&current_harmony, (0, 5), (4, 4), (7, 3), (0, 3)));
+        println!(
+            "{}",
+            no_parallel_oct(&current_harmony, (0, 5), (4, 4), (7, 3), (0, 3))
+        );
+        assert!(!no_parallel_oct(
+            &current_harmony,
+            (0, 5),
+            (4, 4),
+            (7, 3),
+            (0, 3)
+        ));
 
         let current_harmony = PlaceholderSATB::new((0, 5), (4, 4), (7, 3), (0, 3));
-        println!("{}", no_parallel_fifths(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3)));
-        assert!(no_parallel_fifths(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3)));
+        println!(
+            "{}",
+            no_parallel_fifths(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3))
+        );
+        assert!(no_parallel_fifths(
+            &current_harmony,
+            (0, 5),
+            (5, 4),
+            (9, 3),
+            (0, 3)
+        ));
     }
 
     #[test]
     fn test_parallel_fifths() {
         // Contains parallel fifths
-        let current_harmony = PlaceholderSATB::new((7,4), (4, 4), (0, 4), (0, 3));
-        println!("{}", no_parallel_fifths(&current_harmony, (9, 4), (5, 4), (2, 4), (2, 3)));
-        assert!(!no_parallel_fifths(&current_harmony, (9, 4), (5, 4), (2, 4), (2, 3)));
+        let current_harmony = PlaceholderSATB::new((7, 4), (4, 4), (0, 4), (0, 3));
+        println!(
+            "{}",
+            no_parallel_fifths(&current_harmony, (9, 4), (5, 4), (2, 4), (2, 3))
+        );
+        assert!(!no_parallel_fifths(
+            &current_harmony,
+            (9, 4),
+            (5, 4),
+            (2, 4),
+            (2, 3)
+        ));
         // Contains parallel fifths
         let current_harmony = PlaceholderSATB::new((0, 5), (5, 4), (9, 3), (5, 3));
-        println!("{}", no_parallel_fifths(&current_harmony, (2, 5), (5, 4), (11, 3), (7, 3)));
-        assert!(!no_parallel_fifths(&current_harmony, (2, 5), (5, 4), (11, 3), (7, 3)));
+        println!(
+            "{}",
+            no_parallel_fifths(&current_harmony, (2, 5), (5, 4), (11, 3), (7, 3))
+        );
+        assert!(!no_parallel_fifths(
+            &current_harmony,
+            (2, 5),
+            (5, 4),
+            (11, 3),
+            (7, 3)
+        ));
         // Contains hidden parallel fifths
         let current_harmony = PlaceholderSATB::new((0, 5), (4, 4), (7, 3), (0, 3));
-        println!("{}", no_parallel_fifths(&current_harmony, (2, 5), (5, 4), (11, 3), (7, 3)));
-        assert!(!no_parallel_fifths(&current_harmony, (2, 5), (5, 4), (11, 3), (7, 3)));
+        println!(
+            "{}",
+            no_parallel_fifths(&current_harmony, (2, 5), (5, 4), (11, 3), (7, 3))
+        );
+        assert!(!no_parallel_fifths(
+            &current_harmony,
+            (2, 5),
+            (5, 4),
+            (11, 3),
+            (7, 3)
+        ));
 
         let current_harmony = PlaceholderSATB::new((0, 5), (4, 4), (7, 3), (0, 3));
-        println!("{}", no_parallel_fifths(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3)));
-        assert!(no_parallel_fifths(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3)));
-
+        println!(
+            "{}",
+            no_parallel_fifths(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3))
+        );
+        assert!(no_parallel_fifths(
+            &current_harmony,
+            (0, 5),
+            (5, 4),
+            (9, 3),
+            (0, 3)
+        ));
     }
 
     #[test]
     fn test_is_valid() {
         let current_harmony = PlaceholderSATB::new((0, 5), (4, 4), (7, 3), (0, 3));
-        println!("{}", is_valid(&current_harmony, (2, 5), (5, 4), (11, 3), (11, 2)));
+        println!(
+            "{}",
+            is_valid(&current_harmony, (2, 5), (5, 4), (11, 3), (11, 2))
+        );
         assert!(is_valid(&current_harmony, (2, 5), (5, 4), (11, 3), (11, 2)));
 
-        println!("{}", is_valid(&current_harmony, (11, 4), (5, 4), (7, 3), (2, 3)));
+        println!(
+            "{}",
+            is_valid(&current_harmony, (11, 4), (5, 4), (7, 3), (2, 3))
+        );
         assert!(is_valid(&current_harmony, (11, 4), (5, 4), (7, 3), (2, 3)));
 
-        println!("{}", is_valid(&current_harmony, (2, 5), (5, 4), (9, 3), (0, 3)));
+        println!(
+            "{}",
+            is_valid(&current_harmony, (2, 5), (5, 4), (9, 3), (0, 3))
+        );
         assert!(is_valid(&current_harmony, (2, 5), (5, 4), (9, 3), (0, 3)));
 
-        println!("{}", is_valid(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3)));
+        println!(
+            "{}",
+            is_valid(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3))
+        );
         assert!(is_valid(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3)));
-
     }
 }
