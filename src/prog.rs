@@ -116,7 +116,7 @@ macro_rules! harm_prog_graph {
     };
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct PlaceholderSATB((u8, u8), (u8, u8), (u8, u8), (u8, u8));
 
 impl PlaceholderSATB {
@@ -129,6 +129,9 @@ impl PlaceholderSATB {
         PlaceholderSATB(soprano, alto, tenor, bass)
     }
 }
+
+impl Eq for PlaceholderSATB {}
+
 /// A helper function for computing the smallest number of semitone needed to get from one pitch to another.
 fn find_semi_tone_dist(pitch1: u8, pitch2: u8) -> i32 {
     let dist1 = pitch1.dist(&pitch2);
@@ -411,10 +414,10 @@ fn find_voicings(soprano: u8, alto: u8, tenor: u8, bass: u8) -> Vec<Vec<(u8, u8)
     voicings
 }
 
-/// Helper function for generating all possible voicings of a chord, performs the dfs finding all valid voicings.
-fn find_all_possible_voicings_dfs(
+/// Helper function for generating all possible voice arrangements of a chord, performs the dfs finding all valid voicings.
+fn find_all_voice_arrangements_dfs(
     voices: &HashSet<u8>,
-    current_voices: &mut HashSet<u8>,
+    mut bit_mask: i16,
     current_arrangement: &mut Vec<u8>,
     result: &mut Vec<Vec<u8>>,
 ) {
@@ -423,25 +426,25 @@ fn find_all_possible_voicings_dfs(
         return ();
     }
     for voice in voices {
-        if !current_voices.contains(voice) {
-            current_voices.insert(*voice);
+        if bit_mask & (1 << *voice) as i16 == 0 {
+            bit_mask |= ((1 << *voice) as i16);
             current_arrangement.push(*voice);
-            find_all_possible_voicings_dfs(voices, current_voices, current_arrangement, result);
-            current_voices.remove(voice);
+            find_all_voice_arrangements_dfs(voices, bit_mask, current_arrangement, result);
+            bit_mask ^= ((1 << *voice) as i16);
             current_arrangement.pop();
         }
     }
 }
 
-/// Helper function for generating all possible voicings of a chord, given
-/// a bass note and remaining set of voices to choose from.
-fn find_all_possible_voicings(bass: u8, voices: HashSet<u8>) -> Vec<PlaceholderSATB> {
+/// Helper function for generating all possible voice arrangements for a given `bass` using the remaining voices from `voices.
+fn find_all_voice_arrangements(bass: u8, voices: HashSet<u8>) -> Vec<PlaceholderSATB> {
     let mut result = Vec::new();
     let mut current_arrangement = vec![bass];
-    let mut current_voices = HashSet::new();
-    find_all_possible_voicings_dfs(
+    // let mut current_voices = HashSet::new();
+    let bit_mask = 0_i16;
+    find_all_voice_arrangements_dfs(
         &voices,
-        &mut current_voices,
+        bit_mask,
         &mut current_arrangement,
         &mut result,
     );
@@ -461,17 +464,17 @@ fn find_all_possible_voicings(bass: u8, voices: HashSet<u8>) -> Vec<PlaceholderS
 /// where  the nth chord of the choral is some predominant voicing of V. If there are multiple chorals
 /// that are equally smooth, the funciton will choose a random one.
 ///
-pub fn generate_choral(
-    harmonic_progression: HarmonicProgressionGraph,
-    n: i32,
-) -> Option<Vec<PlaceholderSATB>> {
-    // First generate a random root position I chord
-    let bass = harmonic_progression.graph[&1].root;
-    let voices = harmonic_progression.graph[&1].pitch_classes.clone();
-    let mut voicing_arrangements = vec![];
-
-    None
-}
+// pub fn generate_choral(
+//     harmonic_progression: HarmonicProgressionGraph,
+//     n: i32,
+// ) -> Option<Vec<PlaceholderSATB>> {
+//     // First generate a random root position I chord
+//     let bass = harmonic_progression.graph[&1].root;
+//     let voices = harmonic_progression.graph[&1].pitch_classes.clone();
+//     let mut voicing_arrangements = vec![];
+//
+//     None
+// }
 
 #[cfg(test)]
 mod test {
@@ -944,29 +947,29 @@ mod test {
     fn test_find_smoothest_voicing() {
         let current_harmony = PlaceholderSATB::new((0, 5), (4, 4), (7, 3), (0, 3));
         let major_V_7 = harm_prog_node!(0x42 as u8; 7; 11, 2, 5);
-        let next_voicings = find_smoothest_voicing(current_harmony, &major_V_7);
+        let next_voicings = find_smoothest_voicing_transition(current_harmony, &major_V_7);
 
         println!("{:?}", next_voicings);
 
         let major_IV = harm_prog_node!(0xa6 as u8; 5; 9, 0);
-        let next_voicings = find_smoothest_voicing(current_harmony, &major_IV);
+        let next_voicings = find_smoothest_voicing_transition(current_harmony, &major_IV);
 
         println!("{:?}", next_voicings);
 
         // Test from ii to V
         let current_harmony = PlaceholderSATB::new((2, 5), (5, 4), (9, 3), (2, 3));
-        let next_voicings = find_smoothest_voicing(current_harmony, &major_V_7);
+        let next_voicings = find_smoothest_voicing_transition(current_harmony, &major_V_7);
 
         println!("{:?}", next_voicings);
 
         let current_harmony = PlaceholderSATB::new((2, 5), (2, 4), (9, 3), (5, 3));
-        let next_voicings = find_smoothest_voicing(current_harmony, &major_V_7);
+        let next_voicings = find_smoothest_voicing_transition(current_harmony, &major_V_7);
 
         println!("{:?}", next_voicings);
 
         let current_harmony = PlaceholderSATB::new((0, 5), (7, 4), (0, 4), (4, 3));
         let dim_vii = harm_prog_node!(0x22 as u8; 11; 2, 5);
-        let next_voicings = find_smoothest_voicing(current_harmony, &dim_vii);
+        let next_voicings = find_smoothest_voicing_transition(current_harmony, &dim_vii);
 
         println!("{:?}", next_voicings);
     }
@@ -1124,5 +1127,30 @@ mod test {
             is_valid(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3))
         );
         assert!(is_valid(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3)));
+    }
+
+    #[test]
+    fn test_find_all_voice_arrangements() {
+        let mut voices = HashSet::new();
+        voices.insert(0);
+        voices.insert(4);
+        voices.insert(7);
+        let arrangements = find_all_voice_arrangements(0, voices);
+        println!("{:?}", arrangements);
+
+        let expected_result = vec![
+            PlaceholderSATB::new((7, 4), (0, 4), (4, 3), (0, 3)),
+            PlaceholderSATB::new((7, 4), (4, 4), (0, 4), (0, 3)),
+            PlaceholderSATB::new((7, 4), (4, 4), (0, 4), (0, 4)),
+            PlaceholderSATB::new((0, 5), (7, 4), (4, 4), (0, 3)),
+            PlaceholderSATB::new((0, 5), (7, 4), (4, 4), (0, 4)),
+            PlaceholderSATB::new((0, 5), (4, 4), (7, 3), (0, 3)),
+            PlaceholderSATB::new((4, 5), (7, 4), (0, 4), (0, 3)),
+            PlaceholderSATB::new((4, 5), (7, 4), (0, 4), (0, 4)),
+            PlaceholderSATB::new((4, 4), (0, 4), (7, 3), (0, 3)),
+        ];
+        for satb in expected_result {
+            assert!(arrangements.contains(&satb));
+        }
     }
 }
