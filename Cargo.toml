@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 clap = "4.3.22"
+rand = "0.8.5"
 twelve_et = {path = "/Users/benjaminhaase/development/Personal/twelve_et"}

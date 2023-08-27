@@ -1,8 +1,8 @@
 //! Module that contains all of the necessary components for the directed harmonic progression  graph.
+use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::ops::Range;
-use std::sync::atomic::AtomicI32;
 use twelve_et::prelude::*;
 use twelve_et::{
     compute_semi_tone_dist, compute_semi_tone_dist_signed, validate_harmony, PitchClassArithmetic,
@@ -39,7 +39,6 @@ macro_rules! harm_prog_node {
             }
             pitch_classes.insert($root);
             HarmonicProgressionNode {root: $root, pitch_classes, edges: new_edges}
-
         }
     };
 }
@@ -116,7 +115,7 @@ macro_rules! harm_prog_graph {
     };
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
 struct PlaceholderSATB((u8, u8), (u8, u8), (u8, u8), (u8, u8));
 
 impl PlaceholderSATB {
@@ -442,12 +441,7 @@ fn find_all_voice_arrangements(bass: u8, voices: HashSet<u8>) -> Vec<Placeholder
     let mut current_arrangement = vec![bass];
     // let mut current_voices = HashSet::new();
     let bit_mask = 0_i16;
-    find_all_voice_arrangements_dfs(
-        &voices,
-        bit_mask,
-        &mut current_arrangement,
-        &mut result,
-    );
+    find_all_voice_arrangements_dfs(&voices, bit_mask, &mut current_arrangement, &mut result);
     result
         .into_iter()
         .map(|v| find_voicings(v[1], v[2], v[3], v[0]))
@@ -459,22 +453,104 @@ fn find_all_voice_arrangements(bass: u8, voices: HashSet<u8>) -> Vec<Placeholder
         .collect::<Vec<PlaceholderSATB>>()
 }
 
+/// Helper function for generating the choral. Performs the depth first search and returns a boolean
+/// which represents whether or not a valid choral has been generated.
+fn generate_choral_dfs(
+    choral: &mut Vec<(PlaceholderSATB, u8)>,
+    harmonic_progression: &HarmonicProgressionGraph,
+    memo: &mut HashMap<PlaceholderSATB, Vec<(PlaceholderSATB, u8)>>,
+    steps: i32,
+    n: i32,
+) -> bool {
+    if steps == n && choral[choral.len() - 1].1 == 5 {
+        return true;
+    } else if steps == n && choral[choral.len() - 1].1 != 5 {
+        return false;
+    } else {
+        // TODO: Rewrite this part, maybe use caching in the future, otherwise just skip caching.
+        // let mut res = false;
+        // if memo.contains_key(&choral[choral.len() - 1].0) {
+        //     let neighbors = &memo[&choral[choral.len() - 1].0];
+        //     for (ref neighbor, ref harmony) in neighbors {
+        //         choral.push((*neighbor, *harmony));
+        //         if generate_choral_dfs(choral, harmonic_progression, memo, steps + 1, n) {
+        //             res = true;
+        //             break;
+        //         }
+        //         choral.pop();
+        //     }
+        // } else {
+        //     // We need to generate all possible transistions for the current node
+        //     let current_harmony = choral[choral.len() - 1].1;
+        //     let current_voicing = choral[choral.len() - 1].0;
+        //     let current_node = &harmonic_progression.graph[&current_harmony];
+        //     let current_root = current_node.root;
+        //     let neighbors = &current_node.edges;
+        //     let mut valid_neighbor_voicings = vec![];
+        //
+        //     'outer: for neighbor in neighbors {
+        //         // current neighbor node
+        //         let neighbor_node = &harmonic_progression.graph[neighbor];
+        //
+        //         // Find the smoothest transitions between the current harmony and the neighbor
+        //         if let Some(neighbor_voicings) =
+        //             find_smoothest_voicing_transition(current_voicing, neighbor_node)
+        //         {
+        //             // Collect those that have the smallest score
+        //             let min_score = neighbor_voicings[0].1;
+        //             let mut smoothest_valid_voicings = neighbor_voicings
+        //                 .into_iter()
+        //                 .filter(|(voicing, score)| *score == min_score)
+        //                 .map(|(voicing, score)| (voicing, *neighbor))
+        //                 .collect::<Vec<(PlaceholderSATB, u8)>>();
+        //
+        //             // Shuffle for randomness
+        //             let mut rng = thread_rng();
+        //             smoothest_valid_voicings.shuffle(&mut rng);
+        //
+        //             // Backtrack
+        //             for (neighbor_voicing, neighbor_harmony) in &smoothest_valid_voicings {
+        //                 choral.push((*neighbor_voicing, *neighbor_harmony));
+        //                 if generate_choral_dfs(choral, harmonic_progression, memo, steps + 1, n) {
+        //                     valid_neighbor_voicings.append(&mut smoothest_valid_voicings);
+        //                     res = true;
+        //                     break 'outer;
+        //                 }
+        //             }
+        //         }
+        //     }
+        //
+        //     memo.insert(current_voicing, valid_neighbor_voicings);
+        // }
+        //
+        // res
+    }
+    true
+}
+
 /// Function to find the smoothest choral given a `HarmonicProgresionGraph` `harmonic_progression` and number of steps to walk the graph `n`.
 /// Return a randomly generated choral from root position I to some predominant voicing of V,
 /// where  the nth chord of the choral is some predominant voicing of V. If there are multiple chorals
-/// that are equally smooth, the funciton will choose a random one.
+/// that are equally smooth, the function will choose a random one.
 ///
-// pub fn generate_choral(
-//     harmonic_progression: HarmonicProgressionGraph,
-//     n: i32,
-// ) -> Option<Vec<PlaceholderSATB>> {
-//     // First generate a random root position I chord
-//     let bass = harmonic_progression.graph[&1].root;
-//     let voices = harmonic_progression.graph[&1].pitch_classes.clone();
-//     let mut voicing_arrangements = vec![];
-//
-//     None
-// }
+pub fn generate_choral(
+    harmonic_progression: HarmonicProgressionGraph,
+    n: i32,
+) -> Option<Vec<PlaceholderSATB>> {
+    // First generate a random root position I chord
+    let bass = harmonic_progression.graph[&1].root;
+    let tonic_voices = harmonic_progression.graph[&1].pitch_classes.clone();
+    // Generate possible arrangement for tonic root position I voicing.
+    let tonic_voice_arrangements = find_all_voice_arrangements(bass, tonic_voices);
+    let mut rng = thread_rng();
+    // Choose a random starting chord for root position I voicing from the generated set.
+    // The elements of the choral are tuples of the form (`PlaceholderSATB`, `u8`) where
+    // the PlaceholderSATB represents the state of the current chord i.e. inversion and the u8 represents
+    // the u8 represents the the type of harmony
+    let mut choral = vec![(*tonic_voice_arrangements.choose(&mut rng).unwrap(), 1_u8)];
+
+    None
+}
 
 #[cfg(test)]
 mod test {
