@@ -116,7 +116,7 @@ macro_rules! harm_prog_graph {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
-struct PlaceholderSATB((u8, u8), (u8, u8), (u8, u8), (u8, u8));
+pub struct PlaceholderSATB((u8, u8), (u8, u8), (u8, u8), (u8, u8));
 
 impl PlaceholderSATB {
     pub fn new(
@@ -263,11 +263,11 @@ fn generate_smoothest_voicing(
 ) -> Option<Vec<(PlaceholderSATB, i32)>> {
     let mut result: Vec<(PlaceholderSATB, i32)> = vec![];
     for soprano in &remaining {
-        let (new_soprano, soprano_score) = new_pitch_with_score(current.3, *soprano, 2);
+        let (new_soprano, soprano_score) = new_pitch_with_score(current.0, *soprano, 2);
         for alto in &remaining {
-            let (new_alto, alto_score) = new_pitch_with_score(current.2, *alto, 1);
+            let (new_alto, alto_score) = new_pitch_with_score(current.1, *alto, 1);
             for tenor in &remaining {
-                let (new_tenor, tenor_score) = new_pitch_with_score(current.1, *tenor, 1);
+                let (new_tenor, tenor_score) = new_pitch_with_score(current.2, *tenor, 1);
                 if validate_harmony(new_root, new_soprano, new_alto, new_tenor, new_bass) {
                     result.push((
                         PlaceholderSATB::new(new_soprano, new_alto, new_tenor, new_bass),
@@ -296,7 +296,7 @@ fn find_smoothest_voicing_transition(
         .pitch_classes
         .iter()
         .filter(|pitch_class| {
-            from.0 .0.dist(&pitch_class) <= 2 || pitch_class.dist(&from.0 .0) <= 2
+            from.3 .0.dist(&pitch_class) <= 2 || pitch_class.dist(&from.3 .0) <= 2
         })
         .map(|pitch_class| *pitch_class)
         .collect::<Vec<u8>>();
@@ -319,7 +319,7 @@ fn find_smoothest_voicing_transition(
         {
             remaining.remove(&new_bass);
         }
-        let (new_bass_oct, _) = new_pitch_with_score(from.0, new_bass, 0);
+        let (new_bass_oct, _) = new_pitch_with_score(from.3, new_bass, 0);
         if let Some(ref mut voicings) =
             generate_smoothest_voicing(from, to.root, new_bass_oct, remaining)
         {
@@ -426,10 +426,10 @@ fn find_all_voice_arrangements_dfs(
     }
     for voice in voices {
         if bit_mask & (1 << *voice) as i16 == 0 {
-            bit_mask |= ((1 << *voice) as i16);
+            bit_mask |= (1 << *voice) as i16;
             current_arrangement.push(*voice);
             find_all_voice_arrangements_dfs(voices, bit_mask, current_arrangement, result);
-            bit_mask ^= ((1 << *voice) as i16);
+            bit_mask ^= (1 << *voice) as i16;
             current_arrangement.pop();
         }
     }
@@ -458,7 +458,7 @@ fn find_all_voice_arrangements(bass: u8, voices: HashSet<u8>) -> Vec<Placeholder
 fn generate_choral_dfs(
     choral: &mut Vec<(PlaceholderSATB, u8)>,
     harmonic_progression: &HarmonicProgressionGraph,
-    memo: &mut HashMap<PlaceholderSATB, Vec<(PlaceholderSATB, u8)>>,
+    // memo: &mut HashMap<PlaceholderSATB, Vec<(PlaceholderSATB, u8)>>,
     steps: i32,
     n: i32,
 ) -> bool {
@@ -467,65 +467,49 @@ fn generate_choral_dfs(
     } else if steps == n && choral[choral.len() - 1].1 != 5 {
         return false;
     } else {
-        // TODO: Rewrite this part, maybe use caching in the future, otherwise just skip caching.
-        // let mut res = false;
-        // if memo.contains_key(&choral[choral.len() - 1].0) {
-        //     let neighbors = &memo[&choral[choral.len() - 1].0];
-        //     for (ref neighbor, ref harmony) in neighbors {
-        //         choral.push((*neighbor, *harmony));
-        //         if generate_choral_dfs(choral, harmonic_progression, memo, steps + 1, n) {
-        //             res = true;
-        //             break;
-        //         }
-        //         choral.pop();
-        //     }
-        // } else {
-        //     // We need to generate all possible transistions for the current node
-        //     let current_harmony = choral[choral.len() - 1].1;
-        //     let current_voicing = choral[choral.len() - 1].0;
-        //     let current_node = &harmonic_progression.graph[&current_harmony];
-        //     let current_root = current_node.root;
-        //     let neighbors = &current_node.edges;
-        //     let mut valid_neighbor_voicings = vec![];
-        //
-        //     'outer: for neighbor in neighbors {
-        //         // current neighbor node
-        //         let neighbor_node = &harmonic_progression.graph[neighbor];
-        //
-        //         // Find the smoothest transitions between the current harmony and the neighbor
-        //         if let Some(neighbor_voicings) =
-        //             find_smoothest_voicing_transition(current_voicing, neighbor_node)
-        //         {
-        //             // Collect those that have the smallest score
-        //             let min_score = neighbor_voicings[0].1;
-        //             let mut smoothest_valid_voicings = neighbor_voicings
-        //                 .into_iter()
-        //                 .filter(|(voicing, score)| *score == min_score)
-        //                 .map(|(voicing, score)| (voicing, *neighbor))
-        //                 .collect::<Vec<(PlaceholderSATB, u8)>>();
-        //
-        //             // Shuffle for randomness
-        //             let mut rng = thread_rng();
-        //             smoothest_valid_voicings.shuffle(&mut rng);
-        //
-        //             // Backtrack
-        //             for (neighbor_voicing, neighbor_harmony) in &smoothest_valid_voicings {
-        //                 choral.push((*neighbor_voicing, *neighbor_harmony));
-        //                 if generate_choral_dfs(choral, harmonic_progression, memo, steps + 1, n) {
-        //                     valid_neighbor_voicings.append(&mut smoothest_valid_voicings);
-        //                     res = true;
-        //                     break 'outer;
-        //                 }
-        //             }
-        //         }
-        //     }
-        //
-        //     memo.insert(current_voicing, valid_neighbor_voicings);
-        // }
-        //
-        // res
+        // TODO: Rewrite this part, maybe use memoization in the future
+        let (current_voicing, current_harmony) = choral[choral.len() - 1];
+        let current_node = &harmonic_progression.graph[&current_harmony];
+        let current_root = current_node.root;
+        let neighbors = &current_node.edges;
+
+        // Generate all possible smooth transitions from current node to all possible neighbors
+        let mut neighbor_voicings = vec![];
+        for neighbor in neighbors {
+            // TODO: Maybe use multi threading to spead this up
+            // println!("in gen loop");
+            let neighbor_node = &harmonic_progression.graph[neighbor];
+            // println!("{:?}", neighbor_node);
+            if let Some(cur_neighbor_voicings) = find_smoothest_voicing_transition(current_voicing, &harmonic_progression.graph[neighbor]) {
+                // println!("{:?}", cur_neighbor_voicings);
+                // Get the min score for the current neighbor
+                let cur_min_score = cur_neighbor_voicings[0].1;
+                // add only voicings that where transitions are the min score
+                neighbor_voicings.extend(
+                    cur_neighbor_voicings
+                        .into_iter()
+                        .filter(|(voicing, score)| *score == cur_min_score)
+                        .map(|(voicing, _)| (voicing, *neighbor))
+                );
+            }
+        }
+        // Once all possible next states have been generated
+        // choose random next states until we find a valid path
+        let mut shuffle_rng = thread_rng();
+        neighbor_voicings.shuffle(&mut shuffle_rng);
+        // println!("{:?}", neighbor_voicings);
+        //TODO: maybe introduce memoization here after all possible valid transitions have been generated
+        let mut res = false;
+        for (next_voicing, next_harmony) in &neighbor_voicings {
+            choral.push((*next_voicing, *next_harmony));
+            if generate_choral_dfs(choral, harmonic_progression, steps + 1, n) {
+                res = true;
+                break;
+            }
+            choral.pop();
+        }
+        return res;
     }
-    true
 }
 
 /// Function to find the smoothest choral given a `HarmonicProgresionGraph` `harmonic_progression` and number of steps to walk the graph `n`.
@@ -536,7 +520,7 @@ fn generate_choral_dfs(
 pub fn generate_choral(
     harmonic_progression: HarmonicProgressionGraph,
     n: i32,
-) -> Option<Vec<PlaceholderSATB>> {
+) -> Option<Vec<(PlaceholderSATB, u8)>> {
     // First generate a random root position I chord
     let bass = harmonic_progression.graph[&1].root;
     let tonic_voices = harmonic_progression.graph[&1].pitch_classes.clone();
@@ -548,7 +532,9 @@ pub fn generate_choral(
     // the PlaceholderSATB represents the state of the current chord i.e. inversion and the u8 represents
     // the u8 represents the the type of harmony
     let mut choral = vec![(*tonic_voice_arrangements.choose(&mut rng).unwrap(), 1_u8)];
-
+    if generate_choral_dfs(&mut choral, &harmonic_progression, 1, n) {
+        return Some(choral);
+    }
     None
 }
 
@@ -1048,6 +1034,13 @@ mod test {
         let next_voicings = find_smoothest_voicing_transition(current_harmony, &dim_vii);
 
         println!("{:?}", next_voicings);
+
+        let current_harmony = PlaceholderSATB::new((0, 5), (7, 4), (4, 4), (0, 3));
+        let major_IV = harm_prog_node!(0xa6 as u8; 5; 9, 0);
+        let next_voicings = find_smoothest_voicing_transition(current_harmony, &major_IV);
+
+        println!("{:?}", next_voicings);
+
     }
 
     #[test]
@@ -1227,6 +1220,17 @@ mod test {
         ];
         for satb in expected_result {
             assert!(arrangements.contains(&satb));
+        }
+    }
+
+    #[test]
+    fn test_generate_choral() {
+        let harmonic_progression = harm_prog_graph!(0, true);
+        let n = 8;
+        if let Some(choral) = generate_choral(harmonic_progression, n) {
+            println!("{:?}", choral);
+        } else {
+            println!("no output");
         }
     }
 }
