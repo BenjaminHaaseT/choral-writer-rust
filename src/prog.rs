@@ -14,6 +14,10 @@ use twelve_et::{
     TENOR_VOICE_PITCH_CLASS_LOWER_BOUND, TENOR_VOICE_PITCH_CLASS_UPPER_BOUND,
 };
 
+pub mod prelude {
+    pub use super::*;
+}
+
 /// Struct that acts as a single node in the directed graph of harmonic progression.
 #[derive(Debug, PartialEq)]
 struct HarmonicProgressionNode {
@@ -476,12 +480,9 @@ fn generate_choral_dfs(
         // Generate all possible smooth transitions from current node to all possible neighbors
         let mut neighbor_voicings = vec![];
         for neighbor in neighbors {
-            // TODO: Maybe use multi threading to spead this up
-            // println!("in gen loop");
+            // TODO: Maybe use multi threading to speed this up
             let neighbor_node = &harmonic_progression.graph[neighbor];
-            // println!("{:?}", neighbor_node);
             if let Some(cur_neighbor_voicings) = find_smoothest_voicing_transition(current_voicing, &harmonic_progression.graph[neighbor]) {
-                // println!("{:?}", cur_neighbor_voicings);
                 // Get the min score for the current neighbor
                 let cur_min_score = cur_neighbor_voicings[0].1;
                 // add only voicings that where transitions are the min score
@@ -497,7 +498,7 @@ fn generate_choral_dfs(
         // choose random next states until we find a valid path
         let mut shuffle_rng = thread_rng();
         neighbor_voicings.shuffle(&mut shuffle_rng);
-        // println!("{:?}", neighbor_voicings);
+
         //TODO: maybe introduce memoization here after all possible valid transitions have been generated
         let mut res = false;
         for (next_voicing, next_harmony) in &neighbor_voicings {
