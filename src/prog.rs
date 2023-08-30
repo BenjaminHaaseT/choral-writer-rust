@@ -263,12 +263,12 @@ fn generate_smoothest_voicing(
 ) -> Option<Vec<(PlaceholderSATB, i32)>> {
     let mut result: Vec<(PlaceholderSATB, i32)> = vec![];
     for soprano in &remaining {
-        let (new_soprano, soprano_score) = new_pitch_with_score(current.0, *soprano, 2);
+        let (new_soprano, soprano_score) = new_pitch_with_score(current.0, *soprano, 1);
         for alto in &remaining {
-            let (new_alto, alto_score) = new_pitch_with_score(current.1, *alto, 1);
+            let (new_alto, alto_score) = new_pitch_with_score(current.1, *alto, 0);
             for tenor in &remaining {
-                let (new_tenor, tenor_score) = new_pitch_with_score(current.2, *tenor, 1);
-                if validate_harmony(new_root, new_soprano, new_alto, new_tenor, new_bass) {
+                let (new_tenor, tenor_score) = new_pitch_with_score(current.2, *tenor, 0);
+                if validate_harmony(new_root, new_soprano, new_alto, new_tenor, new_bass) && is_valid(&current, new_soprano, new_alto, new_tenor, new_bass) {
                     result.push((
                         PlaceholderSATB::new(new_soprano, new_alto, new_tenor, new_bass),
                         soprano_score + alto_score + tenor_score,
@@ -1100,18 +1100,11 @@ mod test {
             (0, 3)
         ));
 
-        let current_harmony = PlaceholderSATB::new((0, 5), (4, 4), (7, 3), (0, 3));
-        println!(
-            "{}",
-            no_parallel_fifths(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3))
-        );
-        assert!(no_parallel_fifths(
-            &current_harmony,
-            (0, 5),
-            (5, 4),
-            (9, 3),
-            (0, 3)
-        ));
+        let current_harmony = PlaceholderSATB::new((7, 4), (7, 4), (2, 4), (11, 2));
+        println!("{}", no_parallel_oct(&current_harmony, (9, 4), (9, 4), (4, 4), (0, 3)));
+        assert!(!no_parallel_oct(&current_harmony, (9, 4), (9, 4), (4, 4), (0, 3)));
+
+
     }
 
     #[test]
@@ -1154,6 +1147,19 @@ mod test {
             (5, 4),
             (11, 3),
             (7, 3)
+        ));
+
+        let current_harmony = PlaceholderSATB::new((0, 5), (4, 4), (7, 3), (0, 3));
+        println!(
+            "{}",
+            no_parallel_fifths(&current_harmony, (0, 5), (5, 4), (9, 3), (0, 3))
+        );
+        assert!(no_parallel_fifths(
+            &current_harmony,
+            (0, 5),
+            (5, 4),
+            (9, 3),
+            (0, 3)
         ));
 
         let current_harmony = PlaceholderSATB::new((0, 5), (4, 4), (7, 3), (0, 3));
