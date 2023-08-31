@@ -54,6 +54,7 @@ pub struct HarmonicProgressionGraph {
 }
 
 /// General macro for producing a `HarmonicProgressionGraph`, only requires a `u8` and a `bool`
+#[macro_export]
 macro_rules! harm_prog_graph {
     ($key:expr) => {
         harm_prog_graph!($key, true)
@@ -118,6 +119,8 @@ macro_rules! harm_prog_graph {
         }
     };
 }
+
+pub use harm_prog_graph;
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub struct PlaceholderSATB((u8, u8), (u8, u8), (u8, u8), (u8, u8));
@@ -521,7 +524,7 @@ fn generate_choral_dfs(
 pub fn generate_choral(
     harmonic_progression: HarmonicProgressionGraph,
     n: i32,
-) -> Option<Vec<(PlaceholderSATB, u8)>> {
+) -> Option<Vec<SATB>> {
     // First generate a random root position I chord
     let bass = harmonic_progression.graph[&1].root;
     let tonic_voices = harmonic_progression.graph[&1].pitch_classes.clone();
@@ -534,9 +537,52 @@ pub fn generate_choral(
     // the u8 represents the the type of harmony
     let mut choral = vec![(*tonic_voice_arrangements.choose(&mut rng).unwrap(), 1_u8)];
     if generate_choral_dfs(&mut choral, &harmonic_progression, 1, n) {
-        return Some(choral);
+        return Some(
+            choral
+                .into_iter()
+                .map(|(chord, chord_num)| {
+                    let soprano = Pitch::from(chord.0);
+                    let alto = Pitch::from(chord.1);
+                    let tenor = Pitch::from(chord.2);
+                    let bass = Pitch::from(chord.3);
+                    let root = harmonic_progression.graph[&chord_num].root;
+                    SATB::new(root, soprano, alto, tenor, bass)
+                })
+                .collect::<Vec<SATB>>()
+
+        )
     }
     None
+}
+
+// impl From<(PlaceholderSATB, u8)> for SATB {
+//     fn from(value: (PlaceholderSATB, u8)) -> Self {
+//         let soprano = Pitch::from(value.0);
+//         let alto = Pitch::from(value.1);
+//         let tenor = Pitch::from(value.2);
+//         let bass = Pitch::from(value.3);
+//         SATB::new()
+//     }
+// }
+
+fn write_choral(choral: Vec<SATB>, fname: String) -> Result<()> {
+
+}
+
+pub fn create_choral(key: u8, is_minor: bool, steps: i32, fname: String) -> Result<(), String> {
+    assert!((0..12).contains(&key));
+    let harmonic_progression = harm_prog_graph!(key, is_minor);
+    println!("generating choral...");
+    let choral = if let Some(c) = generate_choral(harmonic_progression, steps) {
+        c
+    } else {
+        return Err("error generating choral".to_string());
+    };
+    println!("choral generated successfully.");
+    println!("writing choral to {}.wav", fname);
+    write_choral(choral, fname.clone());
+    println!("choral written to {}.wav successfully", fname);
+    Ok(())
 }
 
 #[cfg(test)]

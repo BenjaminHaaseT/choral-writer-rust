@@ -77,6 +77,7 @@ name = "choral_writer"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "hound",
  "rand",
  "twelve_et",
 ]
