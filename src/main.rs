@@ -26,16 +26,16 @@ fn main() {
     let key = choral_args.key;
     let is_minor = choral_args.is_minor;
     let steps = choral_args.steps;
+    let fname = choral_args.fname;
 
     if !(0..12).contains(&key) {
         eprintln!("invalid key, ensure --key is between 0 and 11 inclusive");
+        std::process::exit(1);
     }
-    //
-    // let harmonic_progression = prog::harm_prog_graph!(key, is_minor);
-    // if let Some(choral) = generate_choral(harmonic_progression, steps) {
-    //     let mut choral_satb = vec![];
-    //     for (harmony, _) in choral {
-    //         let (soprano, soprano_octave, soprano_freq) = (harmony.0.0, harmony.0.1, Pitch::compute_frequency())
-    //     }
-    // }
+
+    if let Err(e) = create_choral(key, !is_minor, steps, fname) {
+        eprintln!("{e}");
+        std::process::exit(1);
+    }
+
 }

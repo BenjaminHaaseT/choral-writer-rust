@@ -3,6 +3,8 @@ use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::ops::Range;
+use std::ptr::write;
+use hound;
 use twelve_et::prelude::*;
 use twelve_et::{
     compute_semi_tone_dist, compute_semi_tone_dist_signed, validate_harmony, PitchClassArithmetic,
@@ -565,8 +567,20 @@ pub fn generate_choral(
 //     }
 // }
 
-fn write_choral(choral: Vec<SATB>, fname: String) -> Result<()> {
-
+fn write_choral(choral: Vec<SATB>, fname: String) -> Result<(), hound::Error> {
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: 44100,
+        bits_per_sample: 32,
+        sample_format: hound::SampleFormat::Float,
+    };
+    let mut writer = hound::WavWriter::create(format!("{fname}.wav"), spec)?;
+    for satb in choral {
+        for samp in satb.sound_wave(1, 44100) {
+            writer.write_sample(samp)?;
+        }
+    }
+    writer.finalize()
 }
 
 pub fn create_choral(key: u8, is_minor: bool, steps: i32, fname: String) -> Result<(), String> {
@@ -579,10 +593,14 @@ pub fn create_choral(key: u8, is_minor: bool, steps: i32, fname: String) -> Resu
         return Err("error generating choral".to_string());
     };
     println!("choral generated successfully.");
-    println!("writing choral to {}.wav", fname);
-    write_choral(choral, fname.clone());
-    println!("choral written to {}.wav successfully", fname);
-    Ok(())
+    println!("writing choral to {}.wav ...", fname);
+    match write_choral(choral, fname) {
+        Ok(()) => {
+            println!("choral written successfully.");
+            Ok(())
+        }
+        Err(e) => Err("error writing choral to file.".to_string())
+    }
 }
 
 #[cfg(test)]
